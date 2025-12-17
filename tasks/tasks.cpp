@@ -1,6 +1,7 @@
 
 #include "tasks.h"
 #include "LM75B.h"
+#include "imu_driver.h"
 #include "lcd_driver.h"
 #include "projdefs.h"
 #include "rtc_driver.h"
@@ -81,7 +82,7 @@ void vLcdTask(void *pvParameters)
     bool        alarms_dirty = false;
     bool        state_dirty = false;
 
-    char line1[32], line2[32], line3[32];
+    char line1[16], line2[16], line3[16];
 
     for (;;) {
         // Wait indefinitely for a message
@@ -129,6 +130,7 @@ void vLcdTask(void *pvParameters)
                 case LCD_STATE_FULL:
                     if (state_dirty) {
                         lcd_clear();
+                        lcd_line(64, 0, 64, 31);
                         state_dirty = false;
                         time_dirty = temp_dirty = alarms_dirty = true;
                     }
@@ -138,6 +140,7 @@ void vLcdTask(void *pvParameters)
                                 current_time.minutes,
                                 current_time.seconds);
                         lcd_print(0, 0, line1);
+                        lcd_line(64, 0, 64, 31);
                         time_dirty = false;
                     }
                     if (alarms_dirty) {
@@ -149,7 +152,7 @@ void vLcdTask(void *pvParameters)
                     }
                     if (temp_dirty) {
                         sprintf(line3, "T=%.1fC", current_temp);
-                        lcd_print(50, 10, line3);
+                        lcd_print(0, 20, line3);
                         temp_dirty = false;
                     }
                     lcd_update();
@@ -191,3 +194,21 @@ void vTempTask(void *pvParameters)
     }
 }
 
+void vBubLvl(void *vParameters)
+{
+    imu_init();
+    tilt_t tilt;
+    lcd_message_t msg;
+
+    for (;;) {
+
+        if (xSemaphoreTake(xI2CMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+
+            tilt = imu_read();
+            xSemaphoreGive(xI2CMutex);
+            // TODO: create a tilt message, are we pushing to a separate lcd queue?
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+}

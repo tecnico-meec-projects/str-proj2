@@ -1,7 +1,7 @@
 #ifndef IMU_DRIVER_H
 #define IMU_DRIVER_H
 
-#include "../MMA7660FC/MMA7660FC.h"
+#include "MMA7660FC/MMA7660FC.h"
 
 #ifdef __cplusplus
 extern "C" {

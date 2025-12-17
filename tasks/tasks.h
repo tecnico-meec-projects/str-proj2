@@ -8,7 +8,7 @@
 #include "semphr.h"
 #include "task.h"
 #include "../RTC/rtc_driver.h"
-#include "../LM75B/LM75B.h"
+#include "../temperature/LM75B/LM75B.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -73,6 +73,7 @@ void vRtcTask(void *pvParameters);
 void vLcdTask(void *pvParameters);
 void vConsoleTask(void *pvParameters);
 void vTempTask(void *pvParameters);
+void vBubLvl(void *vParameters);
 
 #ifdef __cplusplus
 }

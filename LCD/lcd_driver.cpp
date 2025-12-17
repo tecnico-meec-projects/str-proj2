@@ -1,6 +1,5 @@
 
 #include "lcd_driver.h"
-#include "C12832.h"
 
 // Create LCD object 
 // C12832(PinName mosi, PinName sck, PinName reset, PinName a0, PinName cs)
@@ -29,4 +28,9 @@ void lcd_update(void)
 {
     // C12832 library updates automatically, so this is a no-op
     // Kept for API compatibility
+}
+
+void lcd_line(int x0, int y0, int x1, int y1)
+{
+    lcd.line(x0, y0, x1, y1, 1);
 }

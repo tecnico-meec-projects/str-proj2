@@ -1,0 +1,9 @@
+BUILD
+.mbed
+compile_commands.json
+.clangd
+.cache
+mbed
+IMU/MMA7660FC
+LCD/C12832
+temperature/LM75B

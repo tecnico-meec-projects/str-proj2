@@ -22,6 +22,7 @@ int main(void)
     xTaskCreate(vLcdTask, "LCD", 256, NULL, 2, NULL);
     // xTaskCreate(vConsoleTask, "Console", 256, NULL, 1, NULL);
     xTaskCreate(vTempTask, "Temperature Monitoring", 256, NULL, 3, NULL);
+    xTaskCreate(vBubLvl, "Bubble Level", 256, NULL, 3, NULL);
     
 
     vTaskStartScheduler();
