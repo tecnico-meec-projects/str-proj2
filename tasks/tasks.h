@@ -7,7 +7,8 @@
 #include "queue.h"
 #include "semphr.h"
 #include "task.h"
-#include "rtc_driver.h"
+#include "../RTC/rtc_driver.h"
+#include "../LM75B/LM75B.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -65,11 +66,13 @@ typedef struct {
 extern QueueHandle_t xLcdQueue;
 extern QueueHandle_t xRtcQueue;
 extern SemaphoreHandle_t xRtcMutex;
+extern SemaphoreHandle_t xI2CMutex;
 
 
 void vRtcTask(void *pvParameters);
 void vLcdTask(void *pvParameters);
 void vConsoleTask(void *pvParameters);
+void vTempTask(void *pvParameters);
 
 #ifdef __cplusplus
 }
