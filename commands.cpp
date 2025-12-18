@@ -5,68 +5,58 @@
 #include "tasks.h"
 #include "rtc_driver.h"
 
-void cmd_rc(int argc, char **argv)
-{
-    rtc_command_t cmd;
-    rtc_response_t response;
-    QueueHandle_t response_queue;
-    
-    response_queue = xQueueCreate(1, sizeof(rtc_response_t));
-    if (!response_queue) { 
-        printf("Error: Failed to create response queue\n"); 
-        return; 
-    }
-    
-    cmd.type = RTC_CMD_READ_TIME;
-    cmd.response_queue = response_queue;
-    
-    if (xQueueSend(xRtcQueue, &cmd, pdMS_TO_TICKS(100)) != pdTRUE) {
-        printf("Error: Failed to send command\n");
-        vQueueDelete(response_queue);
-        return;
-    }
-    
-    if (xQueueReceive(response_queue, &response, pdMS_TO_TICKS(1000)) == pdTRUE) {
-        printf("Clock: %02d:%02d:%02d\n", 
-               response.time.hours, response.time.minutes, response.time.seconds);
-    } else {
-        printf("Error: Timeout\n");
-    }
-    
-    vQueueDelete(response_queue);
-}
+extern QueueHandle_t xRtcResponseQueue;
 
+void cmd_test (int argc, char** argv)
+{
+  int i;
+
+  /* exemplo -- escreve argumentos */
+  for (i=0; i<argc; i++)
+    printf ("\nargv[%d] = %s", i, argv[i]);
+}
 
 void cmd_rdt(int argc, char **argv)
 {
     rtc_command_t cmd;
     rtc_response_t response;
-    QueueHandle_t response_queue;
-    
-    response_queue = xQueueCreate(1, sizeof(rtc_response_t));
-    if (!response_queue) { 
-        printf("Error: Failed to create response queue\n"); 
-        return; 
-    }
     
     cmd.type = RTC_CMD_READ_DATETIME;
-    cmd.response_queue = response_queue;
-    
+    cmd.response_queue = xRtcResponseQueue;
+
     if (xQueueSend(xRtcQueue, &cmd, pdMS_TO_TICKS(100)) != pdTRUE) {
         printf("Error: Failed to send command\n");
-        vQueueDelete(response_queue);
         return;
     }
     
-    if (xQueueReceive(response_queue, &response, pdMS_TO_TICKS(1000)) == pdTRUE) {
+    if (xQueueReceive(xRtcResponseQueue, &response, pdMS_TO_TICKS(1000)) == pdTRUE) {
         printf("Date/Time: %02d/%02d/%04d %02d:%02d:%02d\n",
                response.time.day, response.time.month, response.time.year,
                response.time.hours, response.time.minutes, response.time.seconds);
     } else {
         printf("Error: Timeout\n");
+    }    
+}
+
+void cmd_rc(int argc, char **argv)
+{
+    rtc_command_t cmd;
+    rtc_response_t response;
+    
+    cmd.type = RTC_CMD_READ_TIME;
+    cmd.response_queue = xRtcResponseQueue;
+    
+    if (xQueueSend(xRtcQueue, &cmd, pdMS_TO_TICKS(100)) != pdTRUE) {
+        printf("Error: Failed to send command\n");
+        return;
     }
     
-    vQueueDelete(response_queue);
+    if (xQueueReceive(xRtcResponseQueue, &response, pdMS_TO_TICKS(1000)) == pdTRUE) {
+        printf("Clock: %02d:%02d:%02d\n", 
+               response.time.hours, response.time.minutes, response.time.seconds);
+    } else {
+        printf("Error: Timeout\n");
+    }
 }
 
 
@@ -79,15 +69,12 @@ void cmd_sc(int argc, char **argv)
     
     rtc_command_t cmd;
     rtc_response_t response;
-    QueueHandle_t response_queue;
     
     // Read current date first
-    response_queue = xQueueCreate(1, sizeof(rtc_response_t));
     cmd.type = RTC_CMD_READ_DATETIME;
-    cmd.response_queue = response_queue;
+    cmd.response_queue = xRtcResponseQueue;
     xQueueSend(xRtcQueue, &cmd, pdMS_TO_TICKS(100));
-    xQueueReceive(response_queue, &response, pdMS_TO_TICKS(1000));
-    vQueueDelete(response_queue);
+    xQueueReceive(xRtcResponseQueue, &response, pdMS_TO_TICKS(1000));
     
     // Set new time
     cmd.type = RTC_CMD_SET_TIME;
@@ -109,21 +96,18 @@ void cmd_sc(int argc, char **argv)
 void cmd_sd(int argc, char **argv)
 {
     if (argc != 4) { 
-        printf("Usage: sd <day> <month> <year>\n"); 
+        printf("Usage: sd <day> <month> <year>\n");
         return; 
     }
     
     rtc_command_t cmd;
     rtc_response_t response;
-    QueueHandle_t response_queue;
     
     // Read current time first
-    response_queue = xQueueCreate(1, sizeof(rtc_response_t));
     cmd.type = RTC_CMD_READ_DATETIME;
-    cmd.response_queue = response_queue;
+    cmd.response_queue = xRtcResponseQueue;
     xQueueSend(xRtcQueue, &cmd, pdMS_TO_TICKS(100));
-    xQueueReceive(response_queue, &response, pdMS_TO_TICKS(1000));
-    vQueueDelete(response_queue);
+    xQueueReceive(xRtcResponseQueue, &response, pdMS_TO_TICKS(1000));
     
     // Set new date
     cmd.type = RTC_CMD_SET_DATE;

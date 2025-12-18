@@ -23,7 +23,6 @@ void lcd_print(uint8_t x, uint8_t y, const char* str)
     lcd.printf("%s", str);
 }
 
-
 void lcd_update(void)
 {
     // C12832 library updates automatically, so this is a no-op
@@ -33,4 +32,14 @@ void lcd_update(void)
 void lcd_line(int x0, int y0, int x1, int y1)
 {
     lcd.line(x0, y0, x1, y1, 1);
+}
+
+void lcd_circle(int x, int y, int r)
+{
+    lcd.circle(x, y, r, 1);
+}
+
+void lcd_clear_area(int x0, int y0, int x1, int y1)
+{
+    lcd.fillrect(x0, y0, x1, y1, 0);
 }

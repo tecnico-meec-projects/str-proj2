@@ -1,71 +1,55 @@
 
 #include "tasks.h"
-#include "LM75B.h"
-#include "imu_driver.h"
 #include "lcd_driver.h"
 #include "projdefs.h"
-#include "rtc_driver.h"
 #include <stdio.h>
 #include <string.h>
 
+#define LCD_WIDTH   128
+#define LCD_HEIGHT   32
 
-QueueHandle_t xLcdQueue;
-QueueHandle_t xRtcQueue;
-SemaphoreHandle_t xRtcMutex;
-SemaphoreHandle_t xI2CMutex;
+#define BUBBLE_RADIUS  3
 
-void vRtcTask(void *pvParameters)
+#define BUBBLE_AREA_X0  65
+#define BUBBLE_AREA_X1  127
+#define BUBBLE_AREA_Y0  0
+#define BUBBLE_AREA_Y1  31
+#define MAX_ANGLE       20
+
+static void draw_bubble(tilt_t tilt)
 {
-    rtc_command_t   cmd;
-    rtc_time_t      current_time;
-    lcd_message_t   lcd_msg;
-    TickType_t      xLastWakeTime;
-    
-    xLastWakeTime = xTaskGetTickCount();
-    rtc_start();
-    for (;;) {
-        // Check for commands (non-blocking)
-        if (xQueueReceive(xRtcQueue, &cmd, 0) == pdTRUE) {
-            
-            xSemaphoreTake(xRtcMutex, portMAX_DELAY);
-            
-            switch (cmd.type) {
-                case RTC_CMD_SET_TIME:
-                case RTC_CMD_SET_DATE:
-                    rtc_set_time(&cmd.time);
-                    break;
-                    
-                case RTC_CMD_READ_TIME:
-                case RTC_CMD_READ_DATETIME:
-                    rtc_get_time(&current_time);
-                    
-                    if (cmd.response_queue != NULL) {
-                        rtc_response_t response;
-                        response.time = current_time;
-                        response.success = 1;
-                        xQueueSend(cmd.response_queue, &response, 0);
-                    }
-                    break;
-            }
-            
-            xSemaphoreGive(xRtcMutex);
-        }
-        
-        // Periodic: Read RTC and send to LCD (every second)
-        xSemaphoreTake(xRtcMutex, portMAX_DELAY);
-        rtc_get_time(&current_time);
-        xSemaphoreGive(xRtcMutex);
-        
-        // Send time update to LCD
-        lcd_msg.type = LCD_MSG_UPDATE_TIME;
-        lcd_msg.time = current_time;
-        xQueueSend(xLcdQueue, &lcd_msg, 0);
-        
-        // Wait 1 second
-        vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(1000));
-    }
-}
+    int center_x = (BUBBLE_AREA_X0 + BUBBLE_AREA_X1) / 2;
+    int center_y = (BUBBLE_AREA_Y0 + BUBBLE_AREA_Y1) / 2;
 
+    int len_x = BUBBLE_AREA_X1 - BUBBLE_AREA_X0 - 2 * BUBBLE_RADIUS;
+    int len_y = BUBBLE_AREA_Y1 - BUBBLE_AREA_Y0 - 2 * BUBBLE_RADIUS;
+
+    int dx = -(tilt.x * len_x) / (2 * MAX_ANGLE);
+    int dy = (tilt.y * len_y) / (2 * MAX_ANGLE);
+
+    int bubble_x = center_x + dx;
+    int bubble_y = center_y + dy;
+
+    /* Clamp */
+    if (bubble_x < BUBBLE_AREA_X0 + BUBBLE_RADIUS)
+        bubble_x = BUBBLE_AREA_X0 + BUBBLE_RADIUS;
+    if (bubble_x > BUBBLE_AREA_X1 - BUBBLE_RADIUS)
+        bubble_x = BUBBLE_AREA_X1 - BUBBLE_RADIUS;
+
+    if (bubble_y < BUBBLE_AREA_Y0 + BUBBLE_RADIUS)
+        bubble_y = BUBBLE_AREA_Y0 + BUBBLE_RADIUS;
+    if (bubble_y > BUBBLE_AREA_Y1 - BUBBLE_RADIUS)
+        bubble_y = BUBBLE_AREA_Y1 - BUBBLE_RADIUS;
+
+
+    // clear this section of screen
+    lcd_clear_area(BUBBLE_AREA_X0, BUBBLE_AREA_Y0, BUBBLE_AREA_X1, BUBBLE_AREA_Y1);
+    // draw center cross hair
+    lcd_line(center_x - BUBBLE_RADIUS, center_y, center_x + BUBBLE_RADIUS, center_y);   // horizontal
+    lcd_line(center_x, center_y - BUBBLE_RADIUS, center_x, center_y + BUBBLE_RADIUS);   // vertical
+    /* Draw bubble */
+    lcd_circle(bubble_x, bubble_y, BUBBLE_RADIUS);
+}
 
 void vLcdTask(void *pvParameters)
 {
@@ -76,11 +60,13 @@ void vLcdTask(void *pvParameters)
     rtc_time_t  current_time = {0};
     float       current_temp = 0.0f;
     uint8_t     alarm_clock = 0, alarm_temp = 0;
+    tilt_t      tilt = {0};
 
     bool        time_dirty = false;
     bool        temp_dirty = false;
     bool        alarms_dirty = false;
     bool        state_dirty = false;
+    bool        tilt_dirty = false;
 
     char line1[16], line2[16], line3[16];
 
@@ -108,6 +94,11 @@ void vLcdTask(void *pvParameters)
                     temp_dirty = true;
                     break;
 
+                case LCD_MSG_UPDATE_BUBBLE:
+                    tilt = msg.tilt;
+                    tilt_dirty = true;
+                    break;
+
                 case LCD_MSG_SHOW_MESSAGE:
                     lcd_clear();
                     lcd_print(5, 10, msg.message);
@@ -132,7 +123,7 @@ void vLcdTask(void *pvParameters)
                         lcd_clear();
                         lcd_line(64, 0, 64, 31);
                         state_dirty = false;
-                        time_dirty = temp_dirty = alarms_dirty = true;
+                        time_dirty = temp_dirty = alarms_dirty = tilt_dirty = true;
                     }
                     if (time_dirty) {
                         sprintf(line1, "%02d:%02d:%02d",
@@ -155,60 +146,15 @@ void vLcdTask(void *pvParameters)
                         lcd_print(0, 20, line3);
                         temp_dirty = false;
                     }
+                    if (tilt_dirty) {
+                        draw_bubble(tilt);
+                        tilt_dirty = false;
+                    }
                     lcd_update();
                     break;
                 default:
                     break;
             }
         }
-        // vTaskDelay(pdMS_TO_TICKS(10));
-    }
-}
-
-
-void vConsoleTask(void *pvParameters)
-{
-    for (;;) {
-        vTaskDelay(pdMS_TO_TICKS(1000));
-    }
-}
-
-void vTempTask(void *pvParameters)
-{
-    LM75B lm75b(p28, p27);
-    float temp;
-    lcd_message_t msg;
-
-    for (;;) {
-
-        if (xSemaphoreTake(xI2CMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
-
-            temp = lm75b.read();
-            xSemaphoreGive(xI2CMutex);
-            msg.type = LCD_MSG_UPDATE_TEMP;
-            msg.temperature = temp;
-            xQueueSend(xLcdQueue, &msg, 0);
-        }
-
-        vTaskDelay(pdMS_TO_TICKS(1000));
-    }
-}
-
-void vBubLvl(void *vParameters)
-{
-    imu_init();
-    tilt_t tilt;
-    lcd_message_t msg;
-
-    for (;;) {
-
-        if (xSemaphoreTake(xI2CMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
-
-            tilt = imu_read();
-            xSemaphoreGive(xI2CMutex);
-            // TODO: create a tilt message, are we pushing to a separate lcd queue?
-        }
-
-        vTaskDelay(pdMS_TO_TICKS(100));
     }
 }

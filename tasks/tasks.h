@@ -6,9 +6,18 @@
 #include "FreeRTOS.h"
 #include "queue.h"
 #include "semphr.h"
+#include "event_groups.h"
 #include "task.h"
-#include "../RTC/rtc_driver.h"
-#include "../temperature/LM75B/LM75B.h"
+#include "rtc_driver.h"
+#include "LM75B.h"
+#include "imu_driver.h"
+
+#define ALARM_TEMP          (1 << 0)
+#define ALARM_TIME          (1 << 1)
+#define ALARM_ACTIVE        (ALARM_TEMP | ALARM_TIME)
+
+#define TEMP_EVT_PERIODIC   (1 << 0)
+#define TEMP_EVT_CMD        (1 << 1)
 
 #ifdef __cplusplus
 extern "C" {
@@ -27,6 +36,7 @@ typedef enum {
     LCD_MSG_UPDATE_TIME,     // Update time display
     LCD_MSG_UPDATE_TEMP,     // Update temperature (future)
     LCD_MSG_UPDATE_ALARMS,   // Update alarm indicators (future)
+    LCD_MSG_UPDATE_BUBBLE,   // Update bubble 
     LCD_MSG_SET_STATE,       // Change display state
     LCD_MSG_SHOW_MESSAGE,    // Show custom message
     LCD_MSG_CLEAR            // Clear display
@@ -37,6 +47,7 @@ typedef struct {
     lcd_display_state_t state;
     rtc_time_t time;
     float temperature;        // For future use
+    tilt_t tilt;
     uint8_t alarm_clock;      // For future use
     uint8_t alarm_temp;       // For future use
     char message[32];
@@ -67,13 +78,15 @@ extern QueueHandle_t xLcdQueue;
 extern QueueHandle_t xRtcQueue;
 extern SemaphoreHandle_t xRtcMutex;
 extern SemaphoreHandle_t xI2CMutex;
+extern EventGroupHandle_t  xAlarmEvents;
 
 
 void vRtcTask(void *pvParameters);
 void vLcdTask(void *pvParameters);
 void vConsoleTask(void *pvParameters);
 void vTempTask(void *pvParameters);
-void vBubLvl(void *vParameters);
+void vBubLvlTask(void *vParameters);
+void vAlarmTask(void *vParameters);
 
 #ifdef __cplusplus
 }
