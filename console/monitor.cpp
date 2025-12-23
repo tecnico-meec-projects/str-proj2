@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include "mbed.h"
-
+#include "mytasks.h"
 
 
 /*-------------------------------------------------------------------------+
@@ -24,6 +24,20 @@ extern void cmd_rc(int, char **);
 extern void cmd_sd(int, char **);
 extern void cmd_rdt(int, char **);
 extern void cmd_sc(int, char **);
+extern void cmd_rt(int, char **);
+extern void cmd_rmm(int, char **);
+extern void cmd_cmm(int, char **);
+extern void cmd_rp(int, char **);
+extern void cmd_mmp(int, char **);
+extern void cmd_rai(int, char **);
+extern void cmd_sac(int, char **);
+extern void cmd_sat(int, char **);
+extern void cmd_adac(int, char **);
+extern void cmd_adat(int, char **);
+extern void cmd_rts(int, char **);
+extern void cmd_adbl(int, char **);
+extern void cmd_adhb(int, char **);
+extern void cmd_adcs(int, char **);
 
 /*-------------------------------------------------------------------------+
 | Variable and constants definition
@@ -36,12 +50,26 @@ struct  command_d {
   char* cmd_name;
   char* cmd_help;
 } const commands[] = {
-  {cmd_sos,     "sos","                    help"},
-  {cmd_test,    "test","<arg1> ... <argn>  test command"},
-  {cmd_rdt,     "rdt","                    read date/time (dd/MM/YYYY hh:mm:ss)"},
-  {cmd_sd,      "sd","  d m y              set date (day, month, year)"},
-  {cmd_rc,      "rc","                     read clock"},
-  {cmd_sc,      "sc","  h m s              set clock (hours, minutes, seconds)"}
+  {cmd_sos,     "sos","                     help"},
+  {cmd_test,    "test"," <arg1> ... <argn>  test command"},
+  {cmd_rdt,     "rdt","                     read date/time (dd/MM/YYYY hh:mm:ss)"},
+  {cmd_sd,      "sd","   d m y              set date (day, month, year)"},
+  {cmd_rc,      "rc","                      read clock"},
+  {cmd_sc,      "sc","   h m s              set clock (hours, minutes, seconds)"},
+  {cmd_rt,      "rt","                      read temperature"},
+  {cmd_rmm,     "rmm","                     read maximum and minimum of temperature"},
+  {cmd_cmm,     "cmm","                     clear maximum and minimum of temperature"},
+  {cmd_rp,      "rp","                      read parameters (pmon, tala)"},
+  {cmd_mmp,     "mmp","  p                  modify monitoring period"},
+  {cmd_rai,     "rai","                     read alarm info (alarm clock, tlow, thigh, active/inactive)"},
+  {cmd_sac,     "sac","  h m s              set alarm clock (hours, minutes, seconds)"},
+  {cmd_sat,     "sat","  tl th              set alarm temperature thresholds (tlow, thigh)"},
+  {cmd_adac,    "adac"," 1/0                activate/deactivate alarm clock"},
+  {cmd_adat,    "adat"," 1/0                activate/deactivate alarm temperature"},
+  {cmd_rts,     "rts","                     read task state (Bubble Level, Hit Bit, Config Sound)"},
+  {cmd_adbl,    "adbl"," 1/0                activate/deactivate Bubble Level task"},
+  {cmd_adhb,    "adht"," 1/0                activate/deactivate Hit Bit task"},
+  {cmd_adcs,    "adcs"," 1/0                activate/deactivate Config Sound operation"}
 };
 
 #define NCOMMANDS  (sizeof(commands)/sizeof(struct command_d))
@@ -115,8 +143,9 @@ void monitor (Serial *pc)
     printf("\nCmd> ");
     /* Reading and parsing command line  ----------------------------------*/
     if ((argc = my_getline(argv, ARGVECSIZE, pc)) > 0) {
-      for (p=argv[0]; *p != '\0'; *p=tolower(*p), p++);
-      for (i = 0; i < NCOMMANDS; i++) 
+        xEventGroupClearBits(xAlarmEvents, ALARM_ACTIVE);
+        for (p=argv[0]; *p != '\0'; *p=tolower(*p), p++);
+        for (i = 0; i < NCOMMANDS; i++) 
     if (strcmp(argv[0], commands[i].cmd_name) == 0) 
       break;
       /* Executing commands -----------------------------------------------*/

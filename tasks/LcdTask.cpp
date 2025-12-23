@@ -1,5 +1,6 @@
 
-#include "tasks.h"
+#include "config.h"
+#include "mytasks.h"
 #include "lcd_driver.h"
 #include "projdefs.h"
 #include <stdio.h>
@@ -53,8 +54,8 @@ static void draw_bubble(tilt_t tilt)
 
 void vLcdTask(void *pvParameters)
 {
-    lcd_message_t msg;
-    lcd_display_state_t current_state = LCD_STATE_FULL;
+    lcd_message_t   msg;
+    EventBits_t     bits;
 
     // Keep track of last known values
     rtc_time_t  current_time = {0};
@@ -62,99 +63,48 @@ void vLcdTask(void *pvParameters)
     uint8_t     alarm_clock = 0, alarm_temp = 0;
     tilt_t      tilt = {0};
 
-    bool        time_dirty = false;
-    bool        temp_dirty = false;
-    bool        alarms_dirty = false;
-    bool        state_dirty = false;
-    bool        tilt_dirty = false;
-
     char line1[16], line2[16], line3[16];
+
+    lcd_line(64, 0, 64, 31);    // line dividing info section and bubble level
 
     for (;;) {
         // Wait indefinitely for a message
         if (xQueueReceive(xLcdQueue, &msg, portMAX_DELAY) == pdTRUE) {
 
-            // Update internal state if needed
-            switch (msg.type) {
-                case LCD_MSG_SET_STATE:
-                    current_state = msg.state;
-                    state_dirty = true;
-                    break;
+            alarm_clock = (xEventGroupGetBits(xAlarmEvents) & ALARM_TIME) ? true : false;
+            alarm_temp = (xEventGroupGetBits(xAlarmEvents) & ALARM_TEMP) ? true : false;
+            sprintf(line2, "A: %c %c",
+                    alarm_clock ? 'C' : ' ',
+                    alarm_temp  ? 'T' : ' ');
+            lcd_print(0, 10, line2);
+
+            switch (msg.type)
+            {
 
                 case LCD_MSG_UPDATE_TIME:
-                    current_time = msg.time;
-                    alarm_clock = msg.alarm_clock;
-                    alarm_temp = msg.alarm_temp;
-                    time_dirty = true;
-                    alarms_dirty = true;
+                    current_time = msg.data.time;
+                    sprintf(line1, "%02d:%02d:%02d",
+                            current_time.hours,
+                            current_time.minutes,
+                            current_time.seconds);
+                    lcd_print(0, 0, line1);
                     break;
 
                 case LCD_MSG_UPDATE_TEMP:
-                    current_temp = msg.temperature;
-                    temp_dirty = true;
+                    current_temp = msg.data.temperature;
+                    sprintf(line3, "T=%.1fC", current_temp);
+                    lcd_print(0, 20, line3);
                     break;
 
                 case LCD_MSG_UPDATE_BUBBLE:
-                    tilt = msg.tilt;
-                    tilt_dirty = true;
-                    break;
-
-                case LCD_MSG_SHOW_MESSAGE:
-                    lcd_clear();
-                    lcd_print(5, 10, msg.message);
-                    lcd_update();
-                    continue; // skip redraw of normal lines
-
-                case LCD_MSG_CLEAR:
-                    lcd_clear();
-                    lcd_update();
-                    continue; // skip redraw of normal lines
-
-                case LCD_MSG_UPDATE_ALARMS:
-                    // Future use
-                    break;
-            }
-
-            // Redraw the LCD based on current state
-            switch (current_state) {
-
-                case LCD_STATE_FULL:
-                    if (state_dirty) {
-                        lcd_clear();
-                        lcd_line(64, 0, 64, 31);
-                        state_dirty = false;
-                        time_dirty = temp_dirty = alarms_dirty = tilt_dirty = true;
-                    }
-                    if (time_dirty) {
-                        sprintf(line1, "%02d:%02d:%02d",
-                                current_time.hours,
-                                current_time.minutes,
-                                current_time.seconds);
-                        lcd_print(0, 0, line1);
-                        lcd_line(64, 0, 64, 31);
-                        time_dirty = false;
-                    }
-                    if (alarms_dirty) {
-                        sprintf(line2, "A:%c%c",
-                                alarm_clock ? 'C' : ' ',
-                                alarm_temp  ? 'T' : ' ');
-                        lcd_print(0, 10, line2);
-                        alarms_dirty = false;
-                    }
-                    if (temp_dirty) {
-                        sprintf(line3, "T=%.1fC", current_temp);
-                        lcd_print(0, 20, line3);
-                        temp_dirty = false;
-                    }
-                    if (tilt_dirty) {
+                    if (BL)
+                        tilt = msg.data.tilt;
                         draw_bubble(tilt);
-                        tilt_dirty = false;
-                    }
-                    lcd_update();
-                    break;
-                default:
-                    break;
+                    break;                
             }
+
+            lcd_update();
+
         }
     }
 }

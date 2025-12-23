@@ -60,3 +60,25 @@ time_t rtc_get_time_t(void)
 {
     return ::time(NULL);
 }
+
+double rtc_time_diff(rtc_time_t time1, rtc_time_t time2)
+{
+    struct tm t1 = convert_rtc_time_to_tm(time1);
+
+    struct tm t2 = convert_rtc_time_to_tm(time2);
+
+    return (::difftime(mktime(&t1), mktime(&t2)));
+}
+
+struct tm convert_rtc_time_to_tm(rtc_time_t time)
+{
+    struct tm t;
+    t.tm_sec = time.seconds;
+    t.tm_min = time.minutes;
+    t.tm_hour = time.hours;
+    t.tm_mday = time.day;
+    t.tm_mon = time.month - 1;        // tm_mon is 0-11
+    t.tm_year = time.year - 1900;     // tm_year is years since 1900
+
+    return (t);
+}
