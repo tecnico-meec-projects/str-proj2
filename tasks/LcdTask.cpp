@@ -55,7 +55,7 @@ static void draw_bubble(tilt_t tilt)
 void vLcdTask(void *pvParameters)
 {
     lcd_message_t   msg;
-    EventBits_t     bits;
+    EventBits_t     prevAlarmBits = 0;
 
     // Keep track of last known values
     rtc_time_t  current_time = {0};
@@ -68,19 +68,27 @@ void vLcdTask(void *pvParameters)
     lcd_line(64, 0, 64, 31);    // line dividing info section and bubble level
 
     for (;;) {
-        // Wait indefinitely for a message
-        if (xQueueReceive(xLcdQueue, &msg, portMAX_DELAY) == pdTRUE) {
 
-            alarm_clock = (xEventGroupGetBits(xAlarmEvents) & ALARM_TIME) ? true : false;
-            alarm_temp = (xEventGroupGetBits(xAlarmEvents) & ALARM_TEMP) ? true : false;
+        // Wait for either a message or an alarm event change
+        BaseType_t msgReceived = xQueueReceive(xLcdQueue, &msg, pdMS_TO_TICKS(100));
+        EventBits_t alarmBits = xEventGroupGetBits(xAlarmEvents);
+        
+        if (alarmBits != prevAlarmBits) {
+            // Alarm state changed
+            prevAlarmBits = alarmBits;
+            alarm_clock = (alarmBits & ALARM_TIME) ? 1 : 0;
+            alarm_temp  = (alarmBits & ALARM_TEMP) ? 1 : 0;
+
             sprintf(line2, "A: %c %c",
                     alarm_clock ? 'C' : ' ',
                     alarm_temp  ? 'T' : ' ');
             lcd_print(0, 10, line2);
+        }
+
+        if (msgReceived == pdTRUE) {
 
             switch (msg.type)
             {
-
                 case LCD_MSG_UPDATE_TIME:
                     current_time = msg.data.time;
                     sprintf(line1, "%02d:%02d:%02d",
@@ -97,14 +105,14 @@ void vLcdTask(void *pvParameters)
                     break;
 
                 case LCD_MSG_UPDATE_BUBBLE:
-                    if (BL)
+                    if (BL) {
                         tilt = msg.data.tilt;
                         draw_bubble(tilt);
+                    }
                     break;                
             }
-
-            lcd_update();
-
         }
+
+        lcd_update();
     }
 }

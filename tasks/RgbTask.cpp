@@ -53,8 +53,6 @@ void vRgbTask(void *pvParameters)
 
         xTaskNotifyWait(0, 0, &raw, portMAX_DELAY);
         memcpy(&temp, &raw, sizeof(float));
-
         temp_to_rgb(temp, (float)tlow, (float)thigh, &r, &g, &b);
-        vTaskDelay(pdMS_TO_TICKS(50));
     }
 }

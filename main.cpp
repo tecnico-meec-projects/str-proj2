@@ -14,11 +14,9 @@
 // Queues
 QueueHandle_t       xLcdQueue;
 QueueHandle_t       xRtcQueue;
-QueueHandle_t       xTempQueue;
 QueueHandle_t       xConsoleQueue;
 
 // Mutexes
-SemaphoreHandle_t   xRtcMutex;
 SemaphoreHandle_t   xI2CMutex;
 
 // Event groups
@@ -43,10 +41,8 @@ int main(void)
 
     xLcdQueue = xQueueCreate(100, sizeof(lcd_message_t));
     xRtcQueue = xQueueCreate(5, sizeof(rtc_message_t));
-    xTempQueue = xQueueCreate(5, sizeof(temp_message_t));
     xConsoleQueue = xQueueCreate(1, sizeof(rtc_message_t));
 
-    xRtcMutex = xSemaphoreCreateMutex();
     xI2CMutex = xSemaphoreCreateMutex();
 
     xAlarmEvents = xEventGroupCreate();
@@ -62,6 +58,8 @@ int main(void)
     xTaskCreate(vAlarmTask, "Alarm", 256, NULL, 3, NULL);
     xTaskCreate(vRgbTask, "RGB", 256, NULL, 3, &xRgbTaskHandle);
     xTaskCreate(vHitBitTask, "HitBit", 256, NULL, 2, &xHitBitTaskHandle);
+
+    xTaskNotify(xTempTaskHandle, TEMP_EVT_PERIODIC, eSetBits);  // to have a temperature update at boot
 
     vTaskStartScheduler();
 

@@ -157,4 +157,4 @@ class MMA7660FC
       char SPI_W_Address; 
 };
 
-#endif
+#endif 

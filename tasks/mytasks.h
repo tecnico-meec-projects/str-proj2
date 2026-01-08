@@ -66,7 +66,6 @@ typedef struct {
 
 extern QueueHandle_t      xLcdQueue;
 extern QueueHandle_t      xRtcQueue;
-extern QueueHandle_t      xTempQueue;
 extern QueueHandle_t      xConsoleQueue;
 
 extern SemaphoreHandle_t  xRtcMutex;
