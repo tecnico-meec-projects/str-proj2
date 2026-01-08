@@ -31,6 +31,7 @@ TimerHandle_t       xTempTimer;
 TaskHandle_t        xTempTaskHandle;
 TaskHandle_t        xRgbTaskHandle;
 TaskHandle_t        xBubLvlTaskHandle;
+TaskHandle_t        xHitBitTaskHandle;
 
 
 void vTempTimerCallback(TimerHandle_t xTimer){
@@ -60,6 +61,7 @@ int main(void)
     xTaskCreate(vBubLvlTask, "Bubble Level", 256, NULL, 3, NULL);
     xTaskCreate(vAlarmTask, "Alarm", 256, NULL, 3, NULL);
     xTaskCreate(vRgbTask, "RGB", 256, NULL, 3, &xRgbTaskHandle);
+    xTaskCreate(vHitBitTask, "HitBit", 256, NULL, 2, &xHitBitTaskHandle);
 
     vTaskStartScheduler();
 

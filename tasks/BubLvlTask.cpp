@@ -1,4 +1,3 @@
-
 #include "mytasks.h"
 #include "imu_driver.h"
 #include "projdefs.h"
@@ -9,6 +8,7 @@ void vBubLvlTask(void *vParameters)
 {
     struct tilt_t   tilt;
     lcd_message_t   msg;
+    int skip_counter = 0;
 
     imu_init();
 
@@ -18,11 +18,17 @@ void vBubLvlTask(void *vParameters)
 
             tilt = imu_read();
             xSemaphoreGive(xI2CMutex);
-            msg.type = LCD_MSG_UPDATE_BUBBLE;
-            msg.data.tilt = tilt;
-            xQueueSend(xLcdQueue, &msg, 0);
+            
+            
+            skip_counter++;
+            if (skip_counter >= 2) {
+                skip_counter = 0;
+                msg.type = LCD_MSG_UPDATE_BUBBLE;
+                msg.data.tilt = tilt;
+                xQueueSend(xLcdQueue, &msg, 0);
+            }
         }
 
-        vTaskDelay(pdMS_TO_TICKS(20));
+        vTaskDelay(pdMS_TO_TICKS(10));  
     }
 }
