@@ -66,7 +66,8 @@ void vLcdTask(void *pvParameters)
     char line1[16], line2[16], line3[16];
 
     lcd_line(64, 0, 64, 31);    // line dividing info section and bubble level
-
+    sprintf(line2, "A:");
+    lcd_print(0, 10, line2);
     for (;;) {
 
         // Wait for either a message or an alarm event change
